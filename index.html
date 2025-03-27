@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meat Order Website (Email)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Order Your Fresh Meat</h1>
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search for meat...">
+            <button id="search-button" class="action-button">Search</button>
+        </div>
+    </header>
+
+    <main>
+        <aside id="menu">
+            <h2>Meat Categories</h2>
+            <ul>
+                <li><a href="#" data-category="all">All Items</a></li>
+                <li><a href="#" data-category="chicken">Chicken</a></li>
+                <li><a href="#" data-category="beef">Beef</a></li>
+                <li><a href="#" data-category="pork">Pork</a></li>
+                <li><a href="#" data-category="lamb">Lamb</a></li>
+                <li><a href="#" data-category="other">Other Items</a></li>
+            </ul>
+        </aside>
+
+        <section id="product-list">
+            </section>
+
+        <aside id="cart">
+            <h2>Your Cart</h2>
+            <ul id="cart-items"></ul>
+            <p>Total: $<span id="cart-total">0.00</span></p>
+            <button id="view-cart-button" class="action-button" onclick="openCartModal()">Cart</button>
+        </aside>
+    </main>
+
+    <div id="quantity-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeQuantityModal()">&times;</span>
+            <h2 id="modal-product-name"></h2>
+            <img id="modal-product-image" src="" alt="">
+            <label for="quantity">Quantity (kg or packs):</label>
+            <input type="number" id="quantity" name="quantity" min="1" value="1">
+            <button class="action-button" onclick="addQuantityToCart()">Add to Cart</button>
+        </div>
+    </div>
+
+    <div id="cart-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeCartModal()">&times;</span>
+            <h2>Edit Your Cart</h2>
+            <ul id="modal-cart-items"></ul>
+            <p>Total: $<span id="modal-cart-total">0.00</span></p>
+            <button class="action-button" onclick="showCustomerDetails()">Proceed to Order</button>
+        </div>
+    </div>
+
+    <div id="customer-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeCustomerDetailsModal()">&times;</span>
+            <h2>Customer Details</h2>
+            <label for="customer-name">Name:</label>
+            <input type="text" id="customer-name" name="customer-name" required>
+            <label for="customer-email">Email:</label>
+            <input type="email" id="customer-email" name="customer-email" required>
+            <label for="delivery-address">Delivery Address:</label>
+            <textarea id="delivery-address" name="delivery-address" rows="4" required>
+            </textarea>
+            <label for="notes">Notes (optional):</label>
+            <textarea id="notes" name="notes" rows="4"></textarea>
+            <button class="action-button" onclick="submitOrderWithDetails()">Submit Order</button>
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2025 Fresh Meat Orders</p>
+    </footer>
+
+    <script>
+        const products = [
+            { id: 1, name: 'Chicken Breast', category: 'chicken', price: 8.99, image: 'images/chicken_breast.jpg' },
+            { id: 2, name: 'Chicken Thighs', category: 'chicken', price: 7.49, image: 'images/chicken_thighs.jpg' },
+            { id: 3, name: 'Chicken Wings', category: 'chicken', price: 6.99, image: 'images/chicken_wings.jpg' },
+            { id: 4, name: 'Beef Steak (Ribeye)', category: 'beef', price: 15.99, image: 'images/beef_ribeye.jpg' },
+            { id: 5, name: 'Ground Beef', category: 'beef', price: 9.99, image: 'images/ground_beef.jpg' },
+            { id: 6, name: 'Beef Roast', category: 'beef', price: 12.49, image: 'images/beef_roast.jpg' },
+            { id: 7, name: 'Pork Chops', category: 'pork', price: 9.49, image: 'images/pork_chops.jpg' },
+            { id: 8, name: 'Pork Tenderloin', category: 'pork', price: 11.99, image: 'images/pork_tenderloin.jpg' },
+            { id: 9, name: 'Bacon', category: 'pork', price: 7.99, image: 'images/bacon.jpg' },
+            { id: 10, name: 'Lamb Chops', category: 'lamb', price: 18.99, image: 'images/lamb_chops.jpg' },
+            { id: 11, name: 'Lamb Leg', category: 'lamb', price: 16.49, image: 'images/lamb_leg.jpg' },
+            { id: 12, name: 'Sausages (Pork)', category: 'other', price: 5.99, image: 'images/sausages.jpg' },
+            { id: 13, name: 'Chicken Skewers', category: 'other', price: 10.99, image: 'images/chicken_skewers.jpg' }
+        ];
+
+        let cart = [];
+        let currentCategory = 'all';
+        let selectedProductId;
+
+        const quantityModal = document.getElementById('quantity-modal');
+        const cartModal = document.getElementById('cart-modal');
+        const customerDetailsModal = document.getElementById('customer-details-modal');
+        const modalProductImage = document.getElementById('modal-product-image');
+        const modalCartItemsElement = document.getElementById('modal-cart-items');
+        const modalCartTotalElement = document.getElementById('modal-cart-total');
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+
+        function displayProducts(items) {
+            const productListElement = document.getElementById('product-list');
+            productListElement.innerHTML = '';
+
+            items.forEach(product => {
+                const productDiv = document.createElement('div');
+                productDiv.classList.add('product-item');
+                productDiv.innerHTML = `
+                    <img src="${product.image}" alt="${product.name}">
+                    <h3>${product.name}</h3>
+                    <p>$${product.price.toFixed(2)}/kg</p>
+                    <button class="action-button" onclick="openQuantityModal(${product.id})">Add to Cart</button>
+                `;
+                productListElement.appendChild(productDiv);
+            });
+        }
+
+        function filterProducts(category) {
+            currentCategory = category;
+            let filteredProducts;
+            if (category === 'all') {
+                filteredProducts = products;
+            } else {
+                filteredProducts = products.filter(product => product.category === category);
+            }
+            displayProducts(filteredProducts);
+        }
+
+        function openQuantityModal(productId) {
+            selectedProductId = productId;
+            const product = products.find(p => p.id === productId);
+            document.getElementById('modal-product-name').textContent = product.name;
+            modalProductImage.src = product.image;
+            modalProductImage.alt = product.name;
+            quantityModal.style.display = 'block';
+            document.getElementById('quantity').value = 1; // Reset quantity
+        }
+
+        function closeQuantityModal() {
+            quantityModal.style.display = 'none';
+        }
+
+        function addQuantityToCart() {
+            const quantityInput = document.getElementById('quantity');
+            const quantity = parseFloat(quantityInput.value);
+
+            if (!isNaN(quantity) && quantity > 0) {
+                const product = products.find(p => p.id === selectedProductId);
+                const existingItem = cart.find(item => item.id === product.id);
+
+                if (existingItem) {
+                    existingItem.quantity += quantity;
+                } else {
+                    cart.push({ id: product.id, name: product.name, price: product.price, quantity: quantity });
+                }
+                updateCartDisplay();
+                closeQuantityModal();
+            } else {
+                alert('Please enter a valid quantity.');
+            }
+        }
+
+        function updateCartDisplay() {
+            const cartItemsElement = document.getElementById('cart-items');
+            const cartTotalElement = document.getElementById('cart-total');
+            cartItemsElement.innerHTML = '';
+            let total = 0;
+            cart.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <span>${item.name} x ${item.quantity} - $${(item.price * item.quantity).toFixed(2)}</span>
+                    <div>
+                        <button class="action-button small-button" onclick="changeQuantity(${item.id}, -1)">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="action-button small-button" onclick="changeQuantity(${item.id}, 1)">+</button>
+                        <button class="action-button small-button remove-button" onclick="removeFromCart(${item.id})">Remove</button>
+                    </div>
+                `;
+                cartItemsElement.appendChild(listItem);
+                total += item.price * item.quantity;
+            });
+            cartTotalElement.textContent = total.toFixed(2);
+            updateModalCart();
+        }
+
+        function changeQuantity(itemId, change) {
+            const item = cart.find(item => item.id === itemId);
+            if (item) {
+                item.quantity += change;
+                if (item.quantity <= 0) {
+                    removeFromCart(itemId);
+                } else {
+                    updateCartDisplay();
+                }
+            }
+        }
+
+        function removeFromCart(itemId) {
+            cart = cart.filter(item => item.id !== itemId);
+            updateCartDisplay();
+        }
+
+        function openCartModal() {
+            updateModalCart();
+            cartModal.style.display = 'block';
+        }
+
+        function closeCartModal() {
+            cartModal.style.display = 'none';
+        }
+
+        function updateModalCart() {
+            modalCartItemsElement.innerHTML = '';
+            let total = 0;
+            cart.forEach(item => {
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    <span>${item.name} x ${item.quantity} - $${(item.price * item.quantity).toFixed(2)}</span>
+                    <div>
+                        <button class="action-button small-button" onclick="changeQuantity(${item.id}, -1)">-</button>
+                        <span>${item.quantity}</span>
+                        <button class="action-button small-button" onclick="changeQuantity(${item.id}, 1)">+</button>
+                        <button class="action-button small-button remove-button" onclick="removeFromCart(${item.id})">Remove</button>
+                    </div>
+                `;
+                modalCartItemsElement.appendChild(listItem);
+                total += item.price * item.quantity;
+            });
+            modalCartTotalElement.textContent = total.toFixed(2);
+        }
+
+        function showCustomerDetails() {
+            if (cart.length === 0) {
+                alert('Your cart is empty. Please add items to your order.');
+                return;
+            }
+            closeCartModal();
+            customerDetailsModal.style.display = 'block';
+        }
+
+        function closeCustomerDetailsModal() {
+            customerDetailsModal.style.display = 'none';
+        }
+
+        function submitOrderWithDetails() {
+            const customerName = document.getElementById('customer-name').value;
+            const customerEmail = document.getElementById('customer-email').value;
+            const deliveryAddress = document.getElementById('delivery-address').value;
+            const notes = document.getElementById('notes').value;
+
+            if (customerName && customerEmail && deliveryAddress) {
+                let orderDetails = `Customer Name: ${customerName}\nEmail: ${customerEmail}\nDelivery Address: ${deliveryAddress}\n\nOrder Details:\n`;
+                cart.forEach(item => {
+                    orderDetails += `${item.name} x ${item.quantity} - $${(item.price * item.quantity).toFixed(2)}\n`;
+                });
+                orderDetails += `\nTotal: $${document.getElementById('cart-total').textContent}`;
+                if (notes) {
+                    orderDetails += `\n\nNotes: ${notes}`;
+                }
+
+                const subject = 'New Meat Order';
+                const body = encodeURIComponent(orderDetails);
+                window.location.href = `mailto:your-email@example.com?subject=${subject}&body=${body}`; // Replace with your email address
+                closeCustomerDetailsModal();
+                alert('Your order details have been sent to your email client. Please send the email to complete your order.');
+            } else {
+                alert('Please fill in all required customer details.');
+            }
+        }
+
+        function searchProducts() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const filteredProducts = products.filter(product =>
+                product.name.toLowerCase().includes(searchTerm) ||
+                product.category.toLowerCase().includes(searchTerm)
+            );
+            displayProducts(filteredProducts);
+        }
+
+        // Initial sorting and display
+        products.sort((a, b) => a.price - b.price);
+        displayProducts(products);
+
+        // Event listeners for menu clicks
+        const menuLinks = document.querySelectorAll('#menu a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', function(event) {
+                event.preventDefault();
+                const category = this.dataset.category;
+                filterProducts(category);
+            });
+        });
+
+        // Event listeners for search
+        searchButton.addEventListener('click', searchProducts);
+        searchInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                searchProducts();
+            }
+        });
+
+        // Close modals if clicked outside
+        window.addEventListener('click', function(event) {
+            if (event.target === quantityModal) {
+                closeQuantityModal();
+            }
+            if (event.target === cartModal) {
+                closeCartModal();
+            }
+            if (event.target === customerDetailsModal) {
+                closeCustomerDetailsModal();
+            }
+        });
+    </script>
+</body>
+</html>
